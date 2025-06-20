@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <title>Overlay AR Web App</title>
+  <style>
+    body, html { margin: 0; padding: 0; overflow: hidden; height: 100%; }
+    #controls { position: absolute; top: 10px; left: 10px; z-index: 10; background: rgba(255,255,255,0.8); padding: 8px; border-radius: 4px; }
+    video, img { position: absolute; top: 0; left: 0; width: 100%; height: auto; }
+  </style>
+</head>
+<body>
+  <div id="controls">
+    <input type="file" id="imageUpload" accept="image/*"><br><br>
+    Trasparenza: <input type="range" id="opacity" min="0" max="1" step="0.01" value="0.5">
+  </div>
+  <video id="video" autoplay playsinline></video>
+  <img id="overlayImage" style="opacity:0.5; display:none;" />
+
+  <script>
+    const video = document.getElementById('video');
+    const overlayImage = document.getElementById('overlayImage');
+    const opacitySlider = document.getElementById('opacity');
+
+    // Accesso fotocamera posteriore
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+      .then(stream => video.srcObject = stream)
+      .catch(err => alert('Errore accesso camera: ' + err));
+
+    // Caricamento immagine
+    document.getElementById('imageUpload').addEventListener('change', e => {
+      const file = e.target.files[0];
+      if (file) {
+        overlayImage.src = URL.createObjectURL(file);
+        overlayImage.style.display = 'block';
+      }
+    });
+
+    // Slider trasparenza
+    opacitySlider.addEventListener('input', () => overlayImage.style.opacity = opacitySlider.value);
+  </script>
+</body>
+</html>
