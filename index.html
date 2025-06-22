@@ -93,16 +93,19 @@
       .catch(err => alert('Errore accesso camera: ' + err));
 
     document.getElementById('imageUpload').addEventListener('change', e => {
-      const file = e.target.files[0];
-      if (file) {
-        overlayImage.src = URL.createObjectURL(file);
-        overlayImage.style.display = 'block';
-        scale = 1;
-        posX = 0;
-        posY = 0;
-        updateTransform();
-      }
-    });
+  const file = e.target.files[0];
+  if (file) {
+    const objectURL = URL.createObjectURL(file);
+    overlayImage.onload = () => {
+      overlayImage.style.display = 'block';
+      scale = 1;
+      posX = 0;
+      posY = 0;
+      updateTransform();
+    };
+    overlayImage.src = objectURL;
+  }
+});
 
     opacitySlider.addEventListener('input', () => overlayImage.style.opacity = opacitySlider.value);
 
