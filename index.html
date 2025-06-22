@@ -87,28 +87,36 @@
     const opacitySlider = document.getElementById('opacity');
     const controls = document.getElementById('controls');
     const toggleButton = document.getElementById('toggleButton');
+    const imageUpload = document.getElementById('imageUpload');
 
+    // Accesso alla fotocamera posteriore
     navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
       .then(stream => video.srcObject = stream)
       .catch(err => alert('Errore accesso camera: ' + err));
 
-    document.getElementById('imageUpload').addEventListener('change', e => {
-  const file = e.target.files[0];
-  if (file) {
-    const objectURL = URL.createObjectURL(file);
-    overlayImage.onload = () => {
-      overlayImage.style.display = 'block';
-      scale = 1;
-      posX = 0;
-      posY = 0;
-      updateTransform();
-    };
-    overlayImage.src = objectURL;
-  }
-});
+    // Caricamento immagine con FileReader per compatibilità massima
+    imageUpload.addEventListener('change', function () {
+      const file = this.files[0];
+      if (file && file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          overlayImage.src = e.target.result;
+          overlayImage.style.display = 'block';
+          scale = 1;
+          posX = 0;
+          posY = 0;
+          updateTransform();
+        };
+        reader.readAsDataURL(file);
+      }
+    });
 
-    opacitySlider.addEventListener('input', () => overlayImage.style.opacity = opacitySlider.value);
+    // Slider trasparenza
+    opacitySlider.addEventListener('input', () => {
+      overlayImage.style.opacity = opacitySlider.value;
+    });
 
+    // Mostra/nasconde il menu
     function hideControls() {
       controls.style.display = 'none';
       toggleButton.style.display = 'block';
@@ -119,4 +127,49 @@
       toggleButton.style.display = 'none';
     }
 
-    // Pin
+    // Funzioni pinch & drag
+    let posX = 0, posY = 0, scale = 1;
+    let startX, startY, initialScale;
+    let isDragging = false;
+    let lastTouchDistance = 0;
+
+    function updateTransform() {
+      overlayImage.style.transform = `translate(${posX}px, ${posY}px) scale(${scale})`;
+    }
+
+    overlayImage.addEventListener('touchstart', e => {
+      if (e.touches.length === 1) {
+        isDragging = true;
+        startX = e.touches[0].clientX - posX;
+        startY = e.touches[0].clientY - posY;
+      } else if (e.touches.length === 2) {
+        isDragging = false;
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        lastTouchDistance = Math.sqrt(dx*dx + dy*dy);
+        initialScale = scale;
+      }
+    });
+
+    overlayImage.addEventListener('touchmove', e => {
+      e.preventDefault();
+      if (e.touches.length === 1 && isDragging) {
+        posX = e.touches[0].clientX - startX;
+        posY = e.touches[0].clientY - startY;
+        updateTransform();
+      } else if (e.touches.length === 2) {
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        const currentDistance = Math.sqrt(dx*dx + dy*dy);
+        const scaleChange = currentDistance / lastTouchDistance;
+        scale = initialScale * scaleChange;
+        updateTransform();
+      }
+    });
+
+    overlayImage.addEventListener('touchend', e => {
+      if (e.touches.length === 0) isDragging = false;
+    });
+  </script>
+</body>
+</html>
