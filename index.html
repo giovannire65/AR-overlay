@@ -1,9 +1,10 @@
+
 <!DOCTYPE html>
 <html lang="it">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Overlay AR Web App</title>
+  <title>Overlay AR Web App - Auto Camera</title>
   <style>
     html, body {
       margin: 0;
@@ -28,11 +29,11 @@
       font-size: 1.2em;
     }
 
-    #controls input[type="file"],
-    #controls input[type="range"] {
+    #controls input {
       width: 100%;
       margin-top: 10px;
       margin-bottom: 15px;
+      font-size: 1em;
     }
 
     #toggleButton {
@@ -74,11 +75,6 @@
     <input type="file" id="imageUpload" accept="image/*"><br>
     <label for="opacity">Trasparenza:</label>
     <input type="range" id="opacity" min="0" max="1" step="0.01" value="0.5"><br>
-    <label for="rotation">Rotazione:</label>
-    <input type="range" id="rotation" min="0" max="360" step="1" value="0"><br>
-    <label for="cameraSelect">Seleziona fotocamera:</label>
-    <select id="cameraSelect"></select>
-    <button onclick="startSelectedCamera()">Attiva camera</button><br><br>
   </div>
 
   <button id="toggleButton" onclick="showControls()">☰ Mostra menu</button>
@@ -90,74 +86,54 @@
     const video = document.getElementById('video');
     const overlayImage = document.getElementById('overlayImage');
     const opacitySlider = document.getElementById('opacity');
-    const rotationSlider = document.getElementById('rotation');
     const controls = document.getElementById('controls');
     const toggleButton = document.getElementById('toggleButton');
     const imageUpload = document.getElementById('imageUpload');
-    const cameraSelect = document.getElementById('cameraSelect');
-    let currentStream;
 
-    // Elenca tutte le fotocamere disponibili
-    navigator.mediaDevices.enumerateDevices().then(devices => {
-      const videoInputs = devices.filter(device => device.kind === 'videoinput');
-      videoInputs.forEach((device, index) => {
-        const option = document.createElement('option');
-        option.value = device.deviceId;
-        option.text = device.label || `Camera ${index + 1}`;
-        cameraSelect.appendChild(option);
-      });
-    });
+    let posX = 0, posY = 0, scale = 1, rotation = 0;
+    let startX, startY, initialScale, initialRotation = 0;
+    let isDragging = false;
+    let lastTouchDistance = 0;
+    let lastTouchAngle = 0;
 
-    // Funzione per avviare la fotocamera selezionata
-    function startSelectedCamera() {
-      const selectedDeviceId = cameraSelect.value;
-
-      if (currentStream) {
-        currentStream.getTracks().forEach(track => track.stop());
-      }
-
-      navigator.mediaDevices.getUserMedia({
-        video: { deviceId: { exact: selectedDeviceId } },
-        audio: false
-      })
-      .then(stream => {
-        currentStream = stream;
-        video.srcObject = stream;
-      })
-      .catch(err => {
-        alert('Errore nel selezionare la camera: ' + err);
-      });
+    function updateTransform() {
+      overlayImage.style.transform = `translate(${posX}px, ${posY}px) scale(${scale}) rotate(${rotation}deg)`;
     }
 
-    // Caricamento immagine
+    navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { exact: "environment" } },
+      audio: false
+    })
+    .then(stream => {
+      video.srcObject = stream;
+    })
+    .catch(err => {
+      alert("Impossibile accedere alla fotocamera: " + err.message);
+    });
+
     imageUpload.addEventListener('change', function () {
       const file = this.files[0];
       if (file && file.type.startsWith('image/')) {
         const reader = new FileReader();
         reader.onload = function (e) {
           overlayImage.src = e.target.result;
-          overlayImage.style.display = 'block';
-          scale = 1;
-          posX = 0;
-          posY = 0;
-          updateTransform();
+          overlayImage.onload = () => {
+            overlayImage.style.display = 'block';
+            scale = 1;
+            posX = 0;
+            posY = 0;
+            rotation = 0;
+            updateTransform();
+          };
         };
         reader.readAsDataURL(file);
       }
     });
 
-    // Slider trasparenza
     opacitySlider.addEventListener('input', () => {
       overlayImage.style.opacity = opacitySlider.value;
     });
 
-    // Slider rotazione
-    rotationSlider.addEventListener('input', () => {
-      const rotationValue = rotationSlider.value;
-      overlayImage.style.transform = `translate(${posX}px, ${posY}px) scale(${scale}) rotate(${rotationValue}deg)`;
-    });
-
-    // Funzioni per mostrare/nascondere il menu
     function hideControls() {
       controls.style.display = 'none';
       toggleButton.style.display = 'block';
@@ -166,16 +142,6 @@
     function showControls() {
       controls.style.display = 'block';
       toggleButton.style.display = 'none';
-    }
-
-    // Funzioni pinch & drag
-    let posX = 0, posY = 0, scale = 1;
-    let startX, startY, initialScale;
-    let isDragging = false;
-    let lastTouchDistance = 0;
-
-    function updateTransform() {
-      overlayImage.style.transform = `translate(${posX}px, ${posY}px) scale(${scale}) rotate(${rotationSlider.value}deg)`;
     }
 
     overlayImage.addEventListener('touchstart', e => {
@@ -188,7 +154,9 @@
         const dx = e.touches[0].clientX - e.touches[1].clientX;
         const dy = e.touches[0].clientY - e.touches[1].clientY;
         lastTouchDistance = Math.sqrt(dx*dx + dy*dy);
+        lastTouchAngle = Math.atan2(dy, dx) * (180 / Math.PI);
         initialScale = scale;
+        initialRotation = rotation;
       }
     });
 
@@ -204,6 +172,11 @@
         const currentDistance = Math.sqrt(dx*dx + dy*dy);
         const scaleChange = currentDistance / lastTouchDistance;
         scale = initialScale * scaleChange;
+
+        const currentAngle = Math.atan2(dy, dx) * (180 / Math.PI);
+        const angleChange = currentAngle - lastTouchAngle;
+        rotation = initialRotation + angleChange;
+
         updateTransform();
       }
     });
