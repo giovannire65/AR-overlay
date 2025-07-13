@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Overlay AR Web App - Auto Camera</title>
+  <title>Overlay AR Web App - No Autofocus</title>
   <style>
     html, body {
       margin: 0;
@@ -100,8 +100,12 @@
       overlayImage.style.transform = `translate(${posX}px, ${posY}px) scale(${scale}) rotate(${rotation}deg)`;
     }
 
+    // Avvio camera senza autofocus dinamico (se supportato)
     navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { exact: "environment" } },
+      video: {
+        facingMode: { exact: "environment" },
+        advanced: [{ focusMode: "manual" }]
+      },
       audio: false
     })
     .then(stream => {
